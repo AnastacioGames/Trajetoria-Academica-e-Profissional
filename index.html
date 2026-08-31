@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trajetória Acadêmica e Profissional</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #F1EFE8;
+    color: #2C2C2A;
+    margin: 0;
+    padding: 24px 16px 60px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.subtitle { color: #5F5E5A; margin: 0 0 24px; font-size: 14px; }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #D3D1C7;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  label { font-size: 12px; color: #5F5E5A; display: block; margin-bottom: 4px; }
+  input, select, button {
+    font-family: inherit;
+    font-size: 14px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #B4B2A9;
+    padding: 0 10px;
+    background: #fff;
+  }
+  input:focus, select:focus { outline: none; border-color: #378ADD; box-shadow: 0 0 0 2px #B5D4F4; }
+
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+  .form-row > div { flex: 1; min-width: 130px; }
+  .form-row > div.grow { flex: 2; }
+
+  button#f-add {
+    background: #2C2C2A; color: #fff; border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; padding: 0 16px;
+  }
+  button#f-add:hover { background: #444441; }
+
+  #err { font-size: 13px; color: #A32D2D; margin-bottom: 8px; display: none; }
+
+  #list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+  .item-row {
+    display: flex; align-items: center; gap: 8px; font-size: 13px;
+    padding: 8px 10px; background: #F1EFE8; border-radius: 8px;
+  }
+  .item-row .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .item-row .name { flex: 1; }
+  .item-row .dates { color: #5F5E5A; }
+  .item-row .del {
+    height: 28px; width: 28px; padding: 0; background: transparent; border: 1px solid #B4B2A9;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; color: #791F1F;
+  }
+  .item-row .del:hover { background: #FCEBEB; }
+
+  #chart-wrap { overflow-x: auto; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .toolbar button {
+    background: #fff; border: 1px solid #B4B2A9; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; padding: 0 14px;
+  }
+  .toolbar button:hover { background: #F1EFE8; }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: #5F5E5A; margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Trajetória acadêmica e profissional</h1>
+  <p class="subtitle">Cadastre cursos, escolas e empregos para gerar o gráfico automaticamente.</p>
+
+  <div class="card">
+    <div class="form-row">
+      <div class="grow">
+        <label>Nome</label>
+        <input id="f-name" type="text" placeholder="ex: Bacharel em Sistemas" style="width:100%;" />
+      </div>
+      <div>
+        <label>Início</label>
+        <input id="f-start" type="month" style="width:100%;" />
+      </div>
+      <div>
+        <label>Fim</label>
+        <input id="f-end" type="month" style="width:100%;" />
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select id="f-type" style="width:100%;">
+          <option value="curso">Curso/Formação</option>
+          <option value="trabalho">Trabalho/Estágio</option>
+        </select>
+      </div>
+      <div style="flex:0;">
+        <label>&nbsp;</label>
+        <button id="f-add"><i class="ti ti-plus" aria-hidden="true"></i> Adicionar</button>
+      </div>
+    </div>
+    <div id="err"></div>
+    <div id="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <button id="export-png"><i class="ti ti-download" aria-hidden="true"></i> Exportar PNG</button>
+      <button id="clear-all"><i class="ti ti-trash" aria-hidden="true"></i> Limpar tudo</button>
+    </div>
+    <div id="chart-wrap">
+      <svg id="chart" width="1000" height="200" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:#F0997B;"></span>Curso/Formação</span>
+      <span><span class="sw" style="background:#5F5E5A;"></span>Trabalho/Estágio</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = {
+  curso: { fill: '#F0997B', text: '#4A1B0C' },
+  trabalho: { fill: '#5F5E5A', text: '#F1EFE8' }
+};
+
+const STORAGE_KEY = 'timeline-items-v1';
+
+function loadItems() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return [
+    { name: 'Soldador - Amsted-Maxion', start: '2007-10', end: '2008-12', type: 'trabalho' },
+    { name: 'Bacharel em Sistemas de Informação', start: '2009-02', end: '2013-12', type: 'curso' },
+    { name: 'Estágio - Prefeitura de Hortolândia', start: '2012-07', end: '2013-06', type: 'trabalho' },
+    { name: 'ASPIL Informática', start: '2014-02', end: '2015-11', type: 'trabalho' },
+    { name: 'Técnico em Eletroeletrônica - IFSP', start: '2013-02', end: '2015-12', type: 'curso' },
+    { name: 'Auxiliar de Produção - Perfil', start: '2016-04', end: '2017-03', type: 'trabalho' },
+    { name: 'Impressor - Perfil', start: '2017-03', end: '2017-06', type: 'trabalho' },
+    { name: 'Operador de Maquinário - BREXA Next (Japão)', start: '2018-11', end: '2026-08', type: 'trabalho' }
+  ];
+}
+
+let items = loadItems();
+
+function saveItems() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
+}
+
+function monthIndex(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  return y * 12 + (m - 1);
+}
+
+function assignLanes(list) {
+  const lanes = [];
+  list.forEach(item => {
+    let laneIdx = lanes.findIndex(end => end <= monthIndex(item.start));
+    if (laneIdx === -1) { laneIdx = lanes.length; lanes.push(0); }
+    lanes[laneIdx] = monthIndex(item.end) + 1;
+    item._lane = laneIdx;
+  });
+  return lanes.length;
+}
+
+function render() {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  items.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<span class="dot" style="background:' + COLORS[item.type].fill + ';"></span>' +
+      '<span class="name">' + item.name + '</span>' +
+      '<span class="dates">' + item.start + ' a ' + item.end + '</span>' +
+      '<button data-i="' + i + '" class="del" title="Remover"><i class="ti ti-trash" aria-hidden="true"></i></button>';
+    list.appendChild(row);
+  });
+  document.querySelectorAll('.del').forEach(btn => {
+    btn.onclick = () => { items.splice(Number(btn.dataset.i), 1); saveItems(); render(); };
+  });
+  drawChart();
+}
+
+function drawChart() {
+  const svg = document.getElementById('chart');
+  if (items.length === 0) { svg.innerHTML = ''; svg.setAttribute('height', 60); return; }
+  const sorted = items.slice().sort((a, b) => monthIndex(a.start) - monthIndex(b.start));
+  const laneCount = assignLanes(sorted);
+
+  const minM = Math.min(...sorted.map(i => monthIndex(i.start)));
+  const maxM = Math.max(...sorted.map(i => monthIndex(i.end)));
+  const startYear = Math.floor(minM / 12);
+  const endYear = Math.ceil((maxM + 1) / 12);
+  const totalMonths = (endYear - startYear) * 12;
+
+  const leftPad = 10, rightPad = 10, topPad = 30;
+  const width = Math.max(900, totalMonths * 16);
+  const rowH = 34;
+  const height = topPad + laneCount * rowH + 10;
+  const chartW = width - leftPad - rightPad;
+  const pxPerMonth = chartW / totalMonths;
+
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+
+  let svgContent = '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#ffffff"/>';
+
+  for (let y = startYear; y <= endYear; y++) {
+    const x = leftPad + (y * 12 - startYear * 12) * pxPerMonth;
+    svgContent += '<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + height + '" stroke="#D3D1C7" stroke-width="1"/>';
+    if (y < endYear) {
+      svgContent += '<rect x="' + x + '" y="2" width="34" height="18" rx="3" fill="#B5D4F4"/>';
+      svgContent += '<text x="' + (x + 17) + '" y="15" font-size="11" text-anchor="middle" fill="#042C53" font-weight="600">' + y + '</text>';
+    }
+  }
+
+  sorted.forEach(item => {
+    const x1 = leftPad + (monthIndex(item.start) - startYear * 12) * pxPerMonth;
+    const x2 = leftPad + (monthIndex(item.end) + 1 - startYear * 12) * pxPerMonth;
+    const y = topPad + item._lane * rowH;
+    const c = COLORS[item.type];
+    svgContent += '<rect x="' + x1 + '" y="' + y + '" width="' + (x2 - x1) + '" height="' + (rowH - 6) + '" rx="4" fill="' + c.fill + '"/>';
+    svgContent += '<text x="' + ((x1 + x2) / 2) + '" y="' + (y + (rowH - 6) / 2 + 4) + '" font-size="11" text-anchor="middle" fill="' + c.text + '" font-weight="600">' + item.name + '</text>';
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+document.getElementById('f-add').onclick = () => {
+  const name = document.getElementById('f-name').value.trim();
+  const start = document.getElementById('f-start').value;
+  const end = document.getElementById('f-end').value;
+  const type = document.getElementById('f-type').value;
+  const err = document.getElementById('err');
+  if (!name || !start || !end) {
+    err.textContent = 'Preencha nome, início e fim.';
+    err.style.display = 'block';
+    return;
+  }
+  if (monthIndex(end) < monthIndex(start)) {
+    err.textContent = 'A data de fim deve ser depois do início.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  items.push({ name, start, end, type });
+  saveItems();
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
+  render();
+};
+
+document.getElementById('clear-all').onclick = () => {
+  if (confirm('Remover todos os itens?')) {
+    items = [];
+    saveItems();
+    render();
+  }
+};
+
+document.getElementById('export-png').onclick = () => {
+  const svg = document.getElementById('chart');
+  const svgData = new XMLSerializer().serializeToString(svg);
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = svg.width.baseVal.value * scale;
+    canvas.height = svg.height.baseVal.value * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, svg.width.baseVal.value, svg.height.baseVal.value);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.download = 'linha-do-tempo.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+};
+
+render();
+</script>
+</body>
+</html>
